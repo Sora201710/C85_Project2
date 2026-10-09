@@ -87,12 +87,22 @@
 */
 
 #include "EV3_Localization.h"
+#include <signal.h>
 
 int map[400][4];        // This holds the representation of the map, up to 20x20
                         // intersections, raster ordered, 4 building colours per
                         // intersection.
 int sx, sy;             // Size of the map (number of intersections along x and y)
 double beliefs[400][4]; // Beliefs for each location and motion direction
+
+static void handle_sigint(int signal_number)
+{
+  (void)signal_number;
+  BT_motor_port_stop(MOTOR_B | MOTOR_C, 1);
+  BT_close();
+  signal(SIGINT, SIG_DFL);
+  raise(SIGINT);
+}
 
 int main(int argc, char *argv[])
 {
@@ -167,6 +177,7 @@ int main(int argc, char *argv[])
     free(map_image);
     exit(1);
   }
+  signal(SIGINT, handle_sigint);
 
   fprintf(stderr, "All set, ready to go!\n");
 
@@ -259,27 +270,35 @@ int drive_along_street(void)
 
   while (1)
   {
-    // BT_read_gyro(PORT_1, 0, &angle, &rate);
-
-    // if (angle > 2)
-    // {
-    //   BT_turn(MOTOR_B, 5, MOTOR_C, 0);
-    // }
-    // else if (angle < -2)
-    // {
-    //   BT_turn(MOTOR_B, 0, MOTOR_C, 5);
-    // }
-    // else
-    // {
-    //   BT_drive(MOTOR_B, MOTOR_C, 0);
-    // }
+    if (angle > 3)
+    {
+      while (angle > 0)
+      {
+        BT_turn(MOTOR_B, 25, MOTOR_C, 0);
+        BT_read_gyro(PORT_1, 0, &angle, &rate);
+        printf("Hello %d \n", angle);
+      }
+    }
+    else if (angle < -3)
+    {
+      BT_turn(MOTOR_B, 0, MOTOR_C, 20);
+      while (angle < 0)
+      {
+        BT_turn(MOTOR_B, 0, MOTOR_C, 25);
+        BT_read_gyro(PORT_1, 0, &angle, &rate);
+        printf("Bye %d \n", angle);
+      }
+    }
+    else
+    {
+      BT_drive(MOTOR_B, MOTOR_C, 50);
+    }
     int result = BT_read_gyro(PORT_1, 0, &angle, &rate);
 
     printf("result=%d angle=%d rate=%d\n", result, angle, rate);
 
     // BT_read_colour_RGBraw_NXT(PORT_1, &R, &G, &B, &A);
     // printf("R: %d, G: %d, B: %d, A: %d\n", R, G, B, A);
-
   }
 
   printf("segment fault\n");
